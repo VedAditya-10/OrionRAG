@@ -1,0 +1,35 @@
+# ORION — Dev services only (PostgreSQL + ChromaDB)
+# Usage: docker compose -f docker-compose.services.yml up -d
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: orion-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: orion
+    ports:
+      - "5433:5432"
+    volumes:
+      - orion_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: orion-chromadb
+    ports:
+      - "8002:8000"
+    volumes:
+      - orion_chroma_data:/chroma/chroma
+    environment:
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+
+volumes:
+  orion_postgres_data:
+  orion_chroma_data:
