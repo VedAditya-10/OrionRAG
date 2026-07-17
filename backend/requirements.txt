@@ -44,6 +44,6 @@ aiofiles>=23.2.1
 Pillow>=10.0.0
 opencv-python>=4.9.0
 easyocr>=1.7.1
-openai-whisper>=20231117
+faster-whisper>=1.0.0
 moviepy>=2.0.0
 extract-msg>=0.48.0

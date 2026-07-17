@@ -46,9 +46,9 @@ Orion is a production-grade, hybrid RAG pipeline that combines vector similarity
 
 | Provider | Model | Setup | Recommendation / Role |
 | :--- | :--- | :--- | :--- |
+| **Gemini** | `gemini-3.1-flash-lite` | Cloud API | **Recommended default** — high speed, cost-effective, supports level-based thinking |
 | **Ollama** | `gemma4:e4B` | Local | Best with text and image inputs **Recommended Model** for localy running|
 | **Ollama** | `qwen3.5:9b` or `qwen3.5:4b` | Local | Native tool-calling support, fast responses on standard developer machines |
-| **Gemini** | `gemini-3.1-flash-lite` | Cloud API | **Recommended default** — high speed, cost-effective, supports level-based thinking |
 | **Ollama** | `gemma3:12b` | Local | Robust reasoning, requires prompt-based tool calling fallback |
 
 ---

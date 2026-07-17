@@ -30,10 +30,11 @@ _EASYOCR_READER = None
 def get_whisper_model():
     global _WHISPER_MODEL
     if _WHISPER_MODEL is None:
-        import whisper
+        from faster_whisper import WhisperModel
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        logger.info(f"Loading Whisper model on {device}...")
-        _WHISPER_MODEL = whisper.load_model("base", device=device)
+        compute_type = "float16" if device == "cuda" else "int8"
+        logger.info(f"Loading faster-whisper model (base) on {device} ({compute_type})...")
+        _WHISPER_MODEL = WhisperModel("base", device=device, compute_type=compute_type)
     return _WHISPER_MODEL
 
 def get_easyocr_reader():
@@ -86,17 +87,15 @@ class MultimodalDocumentParser(BaseDocumentParser):
         transcript_segments = []
         try:
             logger.info("Extracting audio transcription...")
-            # For simplicity, whisper handles reading video files directly via ffmpeg
             model = get_whisper_model()
-            result = model.transcribe(str(file_path), verbose=False, fp16=False)
-            raw_segs = result.get("segments", [])
-            for seg in raw_segs:
-                text = seg.get("text", "").strip()
-                if text and seg.get("no_speech_prob", 0.0) < 0.6:
+            segments, info = model.transcribe(str(file_path), beam_size=5)
+            for seg in segments:
+                text = seg.text.strip()
+                if text and seg.no_speech_prob < 0.6:
                     transcript_segments.append({
                         "text": text,
-                        "start": float(seg.get("start", 0.0)),
-                        "end": float(seg.get("end", 0.0))
+                        "start": float(seg.start),
+                        "end": float(seg.end)
                     })
             logger.info(f"Extracted {len(transcript_segments)} speech segments.")
         except Exception as e:
@@ -114,79 +113,80 @@ class MultimodalDocumentParser(BaseDocumentParser):
 
         # Sample frame every 2 seconds
         frame_interval = int(fps * 2.0)
-        frame_idx = 0
         saved_frames = 0
         max_keyframes = 30
-        prev_frame = None
+        prev_gray = None
 
         logger.info(f"Scanning frames. Total duration: {duration_sec:.1f}s. Interval: {frame_interval} frames.")
 
-        while cap.isOpened() and saved_frames < max_keyframes:
+        for frame_idx in range(0, total_frames, frame_interval):
+            if saved_frames >= max_keyframes:
+                break
+
+            # Seek directly to the desired frame index
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
             ret, frame = cap.read()
             if not ret:
                 break
 
-            if frame_idx % frame_interval == 0:
-                # Calculate pixel difference to detect scene changes/significant keyframes
-                timestamp_sec = frame_idx / fps
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            timestamp_sec = frame_idx / fps
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Convert to gray for diff calculation
+            frame_gray = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2GRAY)
+
+            is_significant = True
+            if prev_gray is not None:
+                diff = float(np.mean(cv2.absdiff(prev_gray, frame_gray)))
+                if diff < 3.0:  # Very static frame
+                    is_significant = False
+
+            if is_significant:
+                img_id = f"frame_{document_id}_{saved_frames}"
+                img_filename = f"{img_id}.jpg"
+                img_path = frames_out_dir / img_filename
                 
-                is_significant = True
-                if prev_frame is not None:
-                    # Calculate difference
-                    gray1 = cv2.cvtColor(prev_frame, cv2.COLOR_RGB2GRAY)
-                    gray2 = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2GRAY)
-                    diff = float(np.mean(cv2.absdiff(gray1, gray2)))
-                    if diff < 3.0:  # Very static frame
-                        is_significant = False
-
-                if is_significant:
-                    img_id = f"frame_{document_id}_{saved_frames}"
-                    img_filename = f"{img_id}.png"
-                    img_path = frames_out_dir / img_filename
-                    
-                    # Resize to keep file sizes small
+                # Resize to keep file sizes small
+                h, w = frame_rgb.shape[:2]
+                if w > 1280:
+                    scale = 1280.0 / w
+                    frame_rgb = cv2.resize(frame_rgb, (1280, int(h * scale)))
                     h, w = frame_rgb.shape[:2]
-                    if w > 1280:
-                        scale = 1280.0 / w
-                        frame_rgb = cv2.resize(frame_rgb, (1280, int(h * scale)))
 
-                    pil_img = Image.fromarray(frame_rgb)
-                    pil_img.save(img_path, "PNG")
+                pil_img = Image.fromarray(frame_rgb)
+                pil_img.save(img_path, "JPEG", quality=85)
 
-                    # Try VLM OCR first, fallback to EasyOCR
-                    ocr_text = ""
-                    vlm_success = False
-                    if settings.ORION_ENABLE_IMAGE_CAPTIONING:
-                        logger.info(f"Attempting VLM OCR extraction for frame at {timestamp_sec:.1f}s...")
-                        ocr_text = self._ocr_image_via_vlm(img_path, "image/png")
-                        if ocr_text:
-                            vlm_success = True
-                            logger.info(f"VLM OCR successful for frame at {timestamp_sec:.1f}s!")
+                # Try VLM OCR first, fallback to EasyOCR
+                ocr_text = ""
+                vlm_success = False
+                if settings.ORION_ENABLE_IMAGE_CAPTIONING:
+                    logger.info(f"Attempting VLM OCR extraction for frame at {timestamp_sec:.1f}s...")
+                    ocr_text = self._ocr_image_via_vlm(img_path, "image/jpeg")
+                    if ocr_text:
+                        vlm_success = True
+                        logger.info(f"VLM OCR successful for frame at {timestamp_sec:.1f}s!")
 
-                    if not vlm_success:
-                        logger.info(f"Falling back to EasyOCR for frame at {timestamp_sec:.1f}s...")
-                        try:
-                            reader = get_easyocr_reader()
-                            ocr_res = reader.readtext(frame_rgb)
-                            ocr_text = " ".join([r[1] for r in ocr_res if r[2] > 0.5])
-                        except Exception as e:
-                            logger.warning(f"OCR failed for frame at {timestamp_sec:.1f}s: {e}")
+                if not vlm_success:
+                    logger.info(f"Falling back to EasyOCR for frame at {timestamp_sec:.1f}s...")
+                    try:
+                        reader = get_easyocr_reader()
+                        ocr_res = reader.readtext(frame_rgb)
+                        ocr_text = " ".join([r[1] for r in ocr_res if r[2] > 0.5])
+                    except Exception as e:
+                        logger.warning(f"OCR failed for frame at {timestamp_sec:.1f}s: {e}")
 
-                    extracted_images.append(ExtractedImage(
-                        image_id=img_id,
-                        document_id=document_id,
-                        page_no=1,
-                        file_path=str(img_path.resolve()),
-                        caption=f"Video Frame at {timestamp_sec:.1f}s. OCR Text: {ocr_text}" if ocr_text else f"Video Frame at {timestamp_sec:.1f}s",
-                        width=w,
-                        height=h,
-                        mime_type="image/png"
-                    ))
-                    saved_frames += 1
-                    prev_frame = frame_rgb
-
-            frame_idx += 1
+                extracted_images.append(ExtractedImage(
+                    image_id=img_id,
+                    document_id=document_id,
+                    page_no=1,
+                    file_path=str(img_path.resolve()),
+                    caption=f"Video Frame at {timestamp_sec:.1f}s. OCR Text: {ocr_text}" if ocr_text else f"Video Frame at {timestamp_sec:.1f}s",
+                    width=w,
+                    height=h,
+                    mime_type="image/jpeg"
+                ))
+                saved_frames += 1
+                prev_gray = frame_gray
 
         cap.release()
         logger.info(f"Extracted and saved {len(extracted_images)} video keyframes.")
@@ -230,7 +230,7 @@ class MultimodalDocumentParser(BaseDocumentParser):
             if item["type"] == "frame":
                 img = item["data"]
                 # Embed frame image tag in Markdown
-                frame_url = f"/frames/frame_{document_id}_{extracted_images.index(img)}.png"
+                frame_url = f"/frames/frame_{document_id}_{extracted_images.index(img)}.jpg"
                 md_line = f"### {time_tag} [Video Frame]\n\n{img.caption}\n\n![{img.caption}]({frame_url})"
                 md.append(md_line)
 
@@ -260,6 +260,12 @@ class MultimodalDocumentParser(BaseDocumentParser):
                 current_chunk_idx += 1
 
         full_md = "\n\n".join(md)
+
+        # Clean up PyTorch / CUDA memory cache
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
         return ParsedDocument(
             document_id=document_id,
             original_filename=original_filename,
@@ -277,15 +283,14 @@ class MultimodalDocumentParser(BaseDocumentParser):
         transcript_segments = []
         try:
             model = get_whisper_model()
-            result = model.transcribe(str(file_path), verbose=False, fp16=False)
-            raw_segs = result.get("segments", [])
-            for seg in raw_segs:
-                text = seg.get("text", "").strip()
-                if text and seg.get("no_speech_prob", 0.0) < 0.6:
+            segments, info = model.transcribe(str(file_path), beam_size=5)
+            for seg in segments:
+                text = seg.text.strip()
+                if text and seg.no_speech_prob < 0.6:
                     transcript_segments.append({
                         "text": text,
-                        "start": float(seg.get("start", 0.0)),
-                        "end": float(seg.get("end", 0.0))
+                        "start": float(seg.start),
+                        "end": float(seg.end)
                     })
         except Exception as e:
             logger.error(f"Whisper transcription failed: {e}")
@@ -314,6 +319,12 @@ class MultimodalDocumentParser(BaseDocumentParser):
             ))
 
         full_md = "\n\n".join(md)
+
+        # Clean up PyTorch / CUDA memory cache
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        gc.collect()
+
         return ParsedDocument(
             document_id=document_id,
             original_filename=original_filename,
