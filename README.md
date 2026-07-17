@@ -51,7 +51,22 @@ Orion is a production-grade, hybrid RAG pipeline that combines vector similarity
 | **Ollama** | `qwen3.5:9b` or `qwen3.5:4b` | Local | Native tool-calling support, fast responses on standard developer machines |
 | **Ollama** | `gemma3:12b` | Local | Robust reasoning, requires prompt-based tool calling fallback |
 
+### Document & Multimodal Processing Models
+
+Orion utilizes specialized local models to parse, transcribe, and structure various document types and media files during ingestion:
+
+| Pipeline Phase | Task | Model / Engine | Details & Configuration |
+| :--- | :--- | :--- | :--- |
+| **PDF/Word/PPT** | Layout & Table Extraction | **Docling** (with YOLOv8 + TableFormer) | Standard high-fidelity document layout extraction. Configure device via `ORION_DOCLING_DEVICE`. |
+| **PDF Code & Math** | Mathematical Formulas | **CodeFormulaV2** (`docling-project/CodeFormulaV2`) | Auto-inline VLM loaded locally via the Transformers engine for LaTeX and formula representation. |
+| **OCR (Fallback)** | Text Recognition | **RapidOCR** (with ONNX Runtime) | Lightweight local OCR for image and table scanning inside Docling. |
+| **Audio/Video** | Voice Transcription | **faster-whisper** (`base` model) | CTranslate2-optimized Whisper engine. CPU uses `int8` quantization; GPU uses `float16`. Runs 4x-8x faster than standard Whisper. |
+| **Video Keyframes** | Image OCR | **EasyOCR** (local) | High-speed local text recognition for captured video frames. |
+| **KG & Vectors** | Text Embeddings | **BAAI/bge-m3** (Sentence-Transformers) | Multi-lingual, 1024-dimension embedding model. Configure via `ORION_EMBEDDING_DEVICE`. |
+| **Reranking** | Context Reranking | **BAAI/bge-reranker-v2-m3** (Cross-Encoder) | Re-scores retrieval candidates for top-precision prompt context. Configure via `ORION_RERANKER_DEVICE`. |
+
 ---
+
 
 ## Quick Start
 
