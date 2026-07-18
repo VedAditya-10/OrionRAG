@@ -1,5 +1,5 @@
 """
-NexusRAG — standalone Knowledge Base + RAG application.
+OrionRAG — standalone Knowledge Base + RAG application.
 """
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -131,7 +131,7 @@ from app.api.router import api_router  # noqa: E402
 
 app.include_router(api_router, prefix="/api/v1")
 
-# Static files — document images extracted by NexusRAG (Docling)
+# Static files — document images extracted by OrionRAG (Docling)
 _docling_data = Path(__file__).resolve().parent.parent / "data" / "docling"
 _docling_data.mkdir(parents=True, exist_ok=True)
 app.mount("/static/doc-images", StaticFiles(directory=str(_docling_data)), name="static_doc_images")

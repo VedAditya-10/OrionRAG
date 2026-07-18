@@ -10,8 +10,8 @@ interface ConfigStatus {
   kg_embedding_provider: string;
   kg_embedding_model: string;
   kg_embedding_dimension: number;
-  nexusrag_embedding_model: string;
-  nexusrag_reranker_model: string;
+  orion_embedding_model: string;
+  orion_reranker_model: string;
 }
 
 interface TopBarProps {

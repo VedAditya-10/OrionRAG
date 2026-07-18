@@ -326,7 +326,7 @@ async def reindex_document(
     document_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Re-process an existing document through the NexusRAG pipeline."""
+    """Re-process an existing document through the OrionRAG pipeline."""
     result = await db.execute(select(Document).where(Document.id == document_id))
     document = result.scalar_one_or_none()
 
@@ -375,7 +375,7 @@ async def reindex_document(
             document_id=document_id,
             status=DocumentStatus.INDEXED.value,
             chunk_count=chunk_count,
-            message=f"Re-indexed with NexusRAG: {chunk_count} chunks created"
+            message=f"Re-indexed with OrionRAG: {chunk_count} chunks created"
         )
     except Exception as e:
         raise HTTPException(
@@ -390,10 +390,9 @@ async def reindex_workspace(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """
     Reindex ALL documents in a workspace.
     Deletes the old vector collection (handles embedding dimension changes)
-    and re-processes every document through the NexusRAG pipeline.
+    and re-processes every document through the OrionRAG pipeline.
     Runs in background — returns immediately with document count.
     """
     await verify_workspace_access(workspace_id, db)
@@ -581,7 +580,7 @@ async def get_document_chunks(
 # ---------------------------------------------------------------------------
 
 async def _get_kg_service(workspace_id: int):
-    """Get KnowledgeGraphService for a knowledge base (if NexusRAG is active)."""
+    """Get KnowledgeGraphService for a knowledge base (if OrionRAG is active)."""
     from app.services.knowledge_graph_service import KnowledgeGraphService
     return KnowledgeGraphService(workspace_id)
 
@@ -843,7 +842,7 @@ async def rate_source(
 
 
 # ---------------------------------------------------------------------------
-# Chat endpoint — LLM-powered document Q&A via NexusRAG
+# Chat endpoint — LLM-powered document Q&A via OrionRAG
 # ---------------------------------------------------------------------------
 # SSE Streaming chat endpoint
 # ---------------------------------------------------------------------------
@@ -867,12 +866,12 @@ async def chat_with_documents(
     request: ChatRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Chat with documents using NexusRAG retrieval + LLM answer generation."""
+    """Chat with documents using OrionRAG retrieval + LLM answer generation."""
     kb = await verify_workspace_access(workspace_id, db)
 
     rag_service = get_rag_service(db, workspace_id)
 
-    # -- 1. Retrieve relevant chunks via NexusRAG --
+    # -- 1. Retrieve relevant chunks via OrionRAG --
     chunks = []
     citations = []
     kg_summary = ""

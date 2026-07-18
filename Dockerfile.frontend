@@ -1,5 +1,5 @@
 # ============================================================
-# NexusRAG Frontend — Multi-stage Docker build
+# OrionRAG Frontend — Multi-stage Docker build
 # ============================================================
 
 # Stage 1: Build the frontend

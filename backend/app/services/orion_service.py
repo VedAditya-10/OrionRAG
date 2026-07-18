@@ -86,7 +86,7 @@ class OrionService:
 
     async def process_document(self, document_id: int, file_path: str) -> int:
         """
-        Process a document through the full NexusRAG pipeline.
+        Process a document through the full OrionRAG pipeline.
 
         Returns:
             Number of chunks created
@@ -250,14 +250,14 @@ class OrionService:
             await self.db.commit()
 
             logger.info(
-                f"NexusRAG processed document {document_id}: "
+                f"OrionRAG processed document {document_id}: "
                 f"{chunk_count} chunks, {len(parsed.images)} images, "
                 f"{parsed.tables_count} tables in {elapsed_ms}ms"
             )
             return chunk_count
 
         except Exception as e:
-            logger.error(f"NexusRAG failed for document {document_id}: {e}")
+            logger.error(f"OrionRAG failed for document {document_id}: {e}")
             document.status = DocumentStatus.FAILED
             document.error_message = str(e)[:500]
             await self.db.commit()
@@ -366,7 +366,7 @@ class OrionService:
             if img_path.exists():
                 img_path.unlink()
 
-        logger.info(f"Deleted document {document_id} from NexusRAG stores")
+        logger.info(f"Deleted document {document_id} from OrionRAG stores")
 
     def get_chunk_count(self) -> int:
         """Return total number of chunks in the knowledge base's vector store."""

@@ -1269,7 +1269,7 @@ export const ChatPanel = memo(function ChatPanel({
 
   // Debug mode (Ctrl+Shift+D toggle, persisted in localStorage)
   const [debugMode, setDebugMode] = useState(() =>
-    localStorage.getItem("nexusrag-debug-mode") === "true",
+    localStorage.getItem("orionrag-debug-mode") === "true",
   );
 
   useEffect(() => {
@@ -1278,7 +1278,7 @@ export const ChatPanel = memo(function ChatPanel({
         e.preventDefault();
         setDebugMode((prev) => {
           const next = !prev;
-          localStorage.setItem("nexusrag-debug-mode", String(next));
+          localStorage.setItem("orionrag-debug-mode", String(next));
           toast.success(next ? "Debug mode ON" : "Debug mode OFF");
           return next;
         });

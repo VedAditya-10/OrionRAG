@@ -14,7 +14,7 @@ Two-part prompt architecture adapted from Perplexity AI for document Q&A.
 Assembly:
     system_prompt = (workspace.system_prompt or DEFAULT_SYSTEM_PROMPT) + HARD_SYSTEM_PROMPT
 
-See also: NexusRAG/.agent/systemprompt_ex/chat_prompt.md
+See also: OrionRAG/.agent/systemprompt_ex/chat_prompt.md
 """
 
 # ---------------------------------------------------------------------------

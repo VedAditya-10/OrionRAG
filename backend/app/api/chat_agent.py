@@ -1,5 +1,5 @@
 """
-Chat Agent — Semi-Agentic SSE Streaming for NexusRAG
+Chat Agent — Semi-Agentic SSE Streaming for OrionRAG
 ====================================================
 
 Provides an SSE streaming endpoint where the LLM decides whether to call
@@ -310,7 +310,7 @@ async def sse_with_heartbeat(
 
 
 # ---------------------------------------------------------------------------
-# Tool executor — retrieval via NexusRAG
+# Tool executor — retrieval via OrionRAG
 # ---------------------------------------------------------------------------
 
 async def _execute_search_documents(

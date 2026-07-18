@@ -224,7 +224,7 @@ async def get_document_markdown(
     document_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Get the full structured markdown content of a document (NexusRAG parsed)."""
+    """Get the full structured markdown content of a document (OrionRAG parsed)."""
     result = await db.execute(select(Document).where(Document.id == document_id))
     document = result.scalar_one_or_none()
 
@@ -234,7 +234,7 @@ async def get_document_markdown(
     if not document.markdown_content:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No markdown content available. Document may not have been processed with NexusRAG."
+            detail="No markdown content available. Document may not have been processed with OrionRAG."
         )
 
     markdown = document.markdown_content
