@@ -119,11 +119,7 @@ class OllamaLLMProvider(LLMProvider):
                 options={
                     "temperature": temperature,
                     "num_predict": max_tokens,
-<<<<<<< HEAD
                     "num_ctx": settings.OLLAMA_NUM_CTX,
-=======
-                    "num_ctx": 16384,  # Expand context window for RAG
->>>>>>> 81df30e88af936131cfc3526214a83470a302650
                 },
                 think=True if use_think else None,
             )
@@ -165,11 +161,7 @@ class OllamaLLMProvider(LLMProvider):
                 options={
                     "temperature": temperature,
                     "num_predict": max_tokens,
-<<<<<<< HEAD
                     "num_ctx": settings.OLLAMA_NUM_CTX,
-=======
-                    "num_ctx": 16384,  # Expand context window for RAG
->>>>>>> 81df30e88af936131cfc3526214a83470a302650
                 },
                 think=True if use_think else None,
             )
@@ -218,11 +210,7 @@ class OllamaLLMProvider(LLMProvider):
                 options={
                     "temperature": temperature,
                     "num_predict": max_tokens,
-<<<<<<< HEAD
                     "num_ctx": settings.OLLAMA_NUM_CTX,
-=======
-                    "num_ctx": 16384,  # Expand context window for RAG
->>>>>>> 81df30e88af936131cfc3526214a83470a302650
                 },
                 stream=True,
                 think=True if use_think else None,
