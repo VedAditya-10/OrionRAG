@@ -31,8 +31,13 @@ def get_whisper_model():
     global _WHISPER_MODEL
     if _WHISPER_MODEL is None:
         from faster_whisper import WhisperModel
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        compute_type = "float16" if device == "cuda" else "int8"
+        device_setting = settings.ORION_DOCLING_DEVICE.lower()
+        if "cuda" in device_setting and torch.cuda.is_available():
+            device = "cuda"
+            compute_type = "float16"
+        else:
+            device = "cpu"
+            compute_type = "int8"
         logger.info(f"Loading faster-whisper model (base) on {device} ({compute_type})...")
         _WHISPER_MODEL = WhisperModel("base", device=device, compute_type=compute_type)
     return _WHISPER_MODEL
@@ -41,7 +46,8 @@ def get_easyocr_reader():
     global _EASYOCR_READER
     if _EASYOCR_READER is None:
         import easyocr
-        gpu_avail = torch.cuda.is_available()
+        device_setting = settings.ORION_DOCLING_DEVICE.lower()
+        gpu_avail = "cuda" in device_setting and torch.cuda.is_available()
         logger.info(f"Loading EasyOCR reader (gpu={gpu_avail})...")
         _EASYOCR_READER = easyocr.Reader(['en'], gpu=gpu_avail)
     return _EASYOCR_READER

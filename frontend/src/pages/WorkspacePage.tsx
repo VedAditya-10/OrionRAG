@@ -14,6 +14,8 @@ const PROCESSING_STATUSES = new Set<DocumentStatus>([
   "parsing",
   "indexing",
   "processing",
+  "vector_ready",
+  "graph_pending",
 ]);
 
 export function WorkspacePage() {
@@ -68,19 +70,22 @@ export function WorkspacePage() {
   // -----------------------------------------------------------------------
   // Refresh ragStats when processing finishes
   // -----------------------------------------------------------------------
-  const processingCount = useMemo(
+  const readyDocsCount = useMemo(
     () =>
-      documents?.filter((d) => PROCESSING_STATUSES.has(d.status)).length ?? 0,
+      documents?.filter((d) =>
+        ["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(d.status)
+      ).length ?? 0,
     [documents]
   );
 
-  const prevProcessingRef = useRef(processingCount);
+  const prevReadyCountRef = useRef(readyDocsCount);
   useEffect(() => {
-    if (prevProcessingRef.current > 0 && processingCount === 0) {
+    if (readyDocsCount !== prevReadyCountRef.current) {
       queryClient.invalidateQueries({ queryKey: ["rag-stats", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["workspaces"] });
     }
-    prevProcessingRef.current = processingCount;
-  }, [processingCount, queryClient, workspaceId]);
+    prevReadyCountRef.current = readyDocsCount;
+  }, [readyDocsCount, queryClient, workspaceId]);
 
   // Keep selectedDoc in sync with latest document data
   useEffect(() => {
@@ -159,7 +164,7 @@ export function WorkspacePage() {
   // -----------------------------------------------------------------------
   const handleSelectDoc = useCallback(
     (doc: Document) => {
-      if (doc.status !== "indexed") return;
+      if (!["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(doc.status)) return;
       if (selectedDoc?.id === doc.id) {
         selectDoc(null);
       } else {

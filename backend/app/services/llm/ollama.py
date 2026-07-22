@@ -14,6 +14,7 @@ import numpy as np
 
 from app.services.llm.base import EmbeddingProvider, LLMProvider
 from app.services.llm.types import LLMMessage, LLMResult, StreamChunk
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +116,11 @@ class OllamaLLMProvider(LLMProvider):
             response = client.chat(
                 model=self._model,
                 messages=ollama_msgs,
-                options={"temperature": temperature, "num_predict": max_tokens},
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": settings.OLLAMA_NUM_CTX,
+                },
                 think=True if use_think else None,
             )
             result = self._extract_content(response, keep_thinking=use_think)
@@ -153,7 +158,11 @@ class OllamaLLMProvider(LLMProvider):
             response = await client.chat(
                 model=self._model,
                 messages=ollama_msgs,
-                options={"temperature": temperature, "num_predict": max_tokens},
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": settings.OLLAMA_NUM_CTX,
+                },
                 think=True if use_think else None,
             )
             result = self._extract_content(response, keep_thinking=use_think)
@@ -198,7 +207,11 @@ class OllamaLLMProvider(LLMProvider):
             kwargs: dict = dict(
                 model=self._model,
                 messages=ollama_msgs,
-                options={"temperature": temperature, "num_predict": max_tokens},
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": settings.OLLAMA_NUM_CTX,
+                },
                 stream=True,
                 think=True if use_think else None,
             )

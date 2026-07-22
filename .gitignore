@@ -7,6 +7,8 @@ node_modules/
 dist/
 backend/data/docling/
 backend/data/lightrag/
+backend/data/frames/
+backend/data/
 backend/uploads/
 venv/
 .venv/

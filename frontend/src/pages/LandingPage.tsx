@@ -211,25 +211,32 @@ export function LandingPage() {
                 {/* Connection 1 to 2 */}
                 <path d="M 160 140 L 210 140" className="arrow-line" markerStart="url(#dot)" markerEnd="url(#arrow)" />
 
-                {/* 2. Processing Pipeline */}
-                <rect x="220" y="110" width="160" height="60" rx="2" className="node-rect-act" />
-                <text x="235" y="132" className="text-node">2. PARSING (VLM/CPU)</text>
-                <text x="235" y="152" className="text-desc">Gemma4 Vision / Whisper</text>
+                {/* 2. Phase 1: Parsing & Vector Indexing */}
+                <rect x="220" y="60" width="170" height="60" rx="2" className="node-rect-act" />
+                <text x="235" y="82" className="text-node">2A. VECTOR INDEX (~2-5s)</text>
+                <text x="235" y="102" className="text-desc">Docling + ChromaDB (Vector Ready)</text>
 
-                {/* Connection 2 to DBs */}
-                <path d="M 380 140 L 440 90" className="arrow-line-act" markerEnd="url(#arrow-act)" />
-                <path d="M 380 140 L 440 190" className="arrow-line-act" markerEnd="url(#arrow-act)" />
+                {/* Connection 2A to Vector DB */}
+                <path d="M 390 90 L 440 90" className="arrow-line-act" markerEnd="url(#arrow-act)" />
+
+                {/* 2B. Phase 2: Async KG Job Queue */}
+                <rect x="220" y="160" width="170" height="60" rx="2" className="node-rect-act" />
+                <text x="235" y="182" className="text-node">2B. ASYNC KG QUEUE</text>
+                <text x="235" y="202" className="text-desc">PostgreSQL Queue → LightRAG</text>
+
+                {/* Connection 2B to Knowledge Graph */}
+                <path d="M 390 190 L 440 190" className="arrow-line-act" markerEnd="url(#arrow-act)" />
 
                 {/* 3. Databases */}
                 {/* Vector DB */}
                 <rect x="450" y="60" width="140" height="60" rx="2" className="node-rect" />
                 <text x="465" y="82" className="text-node">VECTOR DB</text>
-                <text x="465" y="102" className="text-desc">ChromaDB / LanceDB</text>
+                <text x="465" y="102" className="text-desc">ChromaDB (Dense bge-m3)</text>
 
                 {/* Knowledge Graph */}
                 <rect x="450" y="160" width="140" height="60" rx="2" className="node-rect" />
                 <text x="465" y="182" className="text-node">KNOWLEDGE GRAPH</text>
-                <text x="465" y="202" className="text-desc">Entities & Relations</text>
+                <text x="465" y="202" className="text-desc">LightRAG (NetworkX Graph)</text>
 
                 {/* Connections to Query API */}
                 <path d="M 590 90 L 640 120" className="arrow-line" markerEnd="url(#arrow)" />
@@ -237,13 +244,13 @@ export function LandingPage() {
 
                 {/* 4. Query & API */}
                 <rect x="650" y="110" width="130" height="60" rx="2" className="node-rect-act" />
-                <text x="665" y="132" className="text-node">4. RAG API</text>
-                <text x="665" y="152" className="text-desc">REST / MCP SSE Endpoint</text>
+                <text x="665" y="132" className="text-node">4. HYBRID RAG API</text>
+                <text x="665" y="152" className="text-desc">Vector + KG + Reranker</text>
               </svg>
             </div>
 
             <div className="mt-4 max-w-[680px] text-xs text-[#a3a29c] leading-relaxed text-center">
-              architecture decouples parsing from searching. Files go to the VLM parsing engine running locally or in the cloud. Generated markdown files are embedded and indexed simultaneously into a vector database (for keyword matching) and an entity-relation graph (for multi-hop logical connections). These are accessed instantly via a standard API or SSE-based MCP server.
+              OrionRAG's architecture decouples fast vector search from background graph building. Documents become searchable in 2–5 seconds (<span className="text-[#e8551f]">VECTOR_READY</span>). An asynchronous PostgreSQL-backed job queue then extracts Knowledge Graph entities using LightRAG in the background (<span className="text-[#e8551f]">GRAPH_READY</span>), protected by live query GPU priority throttling.
             </div>
           </div>
         </section>

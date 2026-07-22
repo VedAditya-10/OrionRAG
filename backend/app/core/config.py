@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     OLLAMA_HOST: str = Field(default="http://localhost:11434")
     OLLAMA_MODEL: str = Field(default="gemma3:12b")
     OLLAMA_ENABLE_THINKING: bool = Field(default=False)
+    OLLAMA_NUM_CTX: int = Field(default=8192)
 
     # LLM (fast model for chat + KG extraction — used when provider=gemini)
     LLM_MODEL_FAST: str = Field(default="gemini-2.5-flash")

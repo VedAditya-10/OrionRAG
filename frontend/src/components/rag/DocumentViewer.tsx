@@ -194,7 +194,7 @@ export const DocumentViewer = memo(function DocumentViewer({
   const { data: markdown, isLoading, error } = useQuery({
     queryKey: ["document-markdown", doc.id],
     queryFn: () => api.getText(`/documents/${doc.id}/markdown`),
-    enabled: doc.status === "indexed",
+    enabled: ["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(doc.status),
     staleTime: 5 * 60 * 1000, // cache 5 min
   });
 
@@ -497,7 +497,7 @@ export const DocumentViewer = memo(function DocumentViewer({
   }, []);
 
   // ---- Loading / error / empty states ----
-  if (doc.status !== "indexed") {
+  if (!["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(doc.status)) {
     return <ViewerEmpty />;
   }
   if (isLoading) return <ViewerSkeleton />;

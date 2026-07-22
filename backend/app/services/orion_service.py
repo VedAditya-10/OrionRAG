@@ -232,27 +232,16 @@ class OrionService:
                 await asyncio.to_thread(_index_sync)
                 chunk_count = len(parsed.chunks)
 
-            # KG ingest (async, non-blocking failure)
-            if self.kg_service and parsed.markdown:
-                try:
-                    await self.kg_service.ingest(parsed.markdown)
-                except Exception as e:
-                    logger.error(
-                        f"KG ingest failed for document {document_id}, "
-                        f"continuing without KG: {e}"
-                    )
-
-            # Phase 3: INDEXED
+            # Phase 1.5: Commit Vector Ingestion complete (VECTOR_READY)
             elapsed_ms = int((time.time() - start_time) * 1000)
-            document.status = DocumentStatus.INDEXED
+            document.status = DocumentStatus.VECTOR_READY
             document.chunk_count = chunk_count
             document.processing_time_ms = elapsed_ms
             await self.db.commit()
 
             logger.info(
-                f"OrionRAG processed document {document_id}: "
-                f"{chunk_count} chunks, {len(parsed.images)} images, "
-                f"{parsed.tables_count} tables in {elapsed_ms}ms"
+                f"OrionRAG Vector indexed document {document_id}: "
+                f"{chunk_count} chunks in {elapsed_ms}ms. Queueing for KG Ingestion."
             )
             return chunk_count
 
@@ -367,6 +356,26 @@ class OrionService:
                 img_path.unlink()
 
         logger.info(f"Deleted document {document_id} from OrionRAG stores")
+
+        # Clean up LightRAG working directory if no documents remain in the workspace
+        if self.kg_service:
+            from app.models.document import Document
+            from sqlalchemy import func
+            count_result = await self.db.execute(
+                select(func.count(Document.id)).where(
+                    Document.workspace_id == self.workspace_id,
+                    Document.id != document_id
+                )
+            )
+            remaining = count_result.scalar() or 0
+            if remaining == 0:
+                import shutil
+                if os.path.exists(self.kg_service.working_dir):
+                    try:
+                        shutil.rmtree(self.kg_service.working_dir)
+                        logger.info(f"Wiped LightRAG directory for empty workspace {self.workspace_id}")
+                    except Exception as clean_err:
+                        logger.warning(f"Failed to wipe LightRAG directory for empty workspace {self.workspace_id}: {clean_err}")
 
     def get_chunk_count(self) -> int:
         """Return total number of chunks in the knowledge base's vector store."""

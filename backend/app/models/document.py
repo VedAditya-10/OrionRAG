@@ -12,6 +12,10 @@ class DocumentStatus(str, enum.Enum):
     PROCESSING = "processing"
     INDEXING = "indexing"
     INDEXED = "indexed"
+    VECTOR_READY = "vector_ready"
+    GRAPH_PENDING = "graph_pending"
+    GRAPH_READY = "graph_ready"
+    GRAPH_FAILED = "graph_failed"
     FAILED = "failed"
 
 

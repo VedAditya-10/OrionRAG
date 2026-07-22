@@ -6,6 +6,10 @@ CREATE TYPE public.documentstatus AS ENUM (
     'PROCESSING',
     'INDEXING',
     'INDEXED',
+    'VECTOR_READY',
+    'GRAPH_PENDING',
+    'GRAPH_READY',
+    'GRAPH_FAILED',
     'FAILED'
 );
 

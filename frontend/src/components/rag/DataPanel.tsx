@@ -95,7 +95,11 @@ export const DataPanel = memo(function DataPanel({
     let result = documents;
     if (statusFilter !== "all") {
       if (statusFilter === "parsing") {
-        result = result.filter((d) => PROCESSING_STATUSES.has(d.status));
+        result = result.filter((d) => PROCESSING_STATUSES.has(d.status) || d.status === "graph_pending");
+      } else if (statusFilter === "indexed") {
+        result = result.filter((d) =>
+          ["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(d.status)
+        );
       } else {
         result = result.filter((d) => d.status === statusFilter);
       }
@@ -110,12 +114,18 @@ export const DataPanel = memo(function DataPanel({
   }, [documents, statusFilter, searchQuery]);
 
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: 0 };
+    const counts = { all: 0, indexed: 0, parsing: 0, failed: 0 };
     documents?.forEach((d) => {
-      counts.all = (counts.all || 0) + 1;
-      counts[d.status] = (counts[d.status] || 0) + 1;
+      counts.all++;
+      if (["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(d.status)) {
+        counts.indexed++;
+      } else if (["parsing", "indexing", "processing"].includes(d.status)) {
+        counts.parsing++;
+      } else if (d.status === "failed") {
+        counts.failed++;
+      }
     });
-    return counts as Record<FilterStatus, number>;
+    return counts as unknown as Record<FilterStatus, number>;
   }, [documents]);
 
   const handleBatchProcess = useCallback(async () => {

@@ -28,16 +28,23 @@ Orion is a production-grade, hybrid RAG pipeline that combines vector similarity
 
 </div>
 
+### Decoupled 2-Stage Ingestion Machine
+Orion decouples fast vector search from background Knowledge Graph construction:
+1. **Phase 1 (Vector Indexing ~2–5s)**: PDF parsing, chunking, and vector embedding write to ChromaDB. Document instantly becomes searchable (`VECTOR_READY`).
+2. **Phase 2 (Async Background KG Queue)**: A background worker sequentially processes pending documents using LightRAG entity/relationship extraction, transitioning documents to `GRAPH_READY` (or `GRAPH_FAILED`) without blocking queries.
+3. **GPU Priority Management**: During active user streaming/chat sessions, background KG extraction automatically yields execution to ensure low-latency user generation.
+
 ---
 
 ## Core Capabilities
 
 *   **Deep Document Parsing (Docling / Marker)**: Parses headings, margins, page boundaries, and tables. Restructures PDF, DOCX, and PPTX files into layout-aware Markdown chunks with structural hierarchy.
+*   **Decoupled Async Knowledge Graph**: Documents are searchable via vector search in 2-5 seconds while LightRAG processes entity graphs in a background PostgreSQL queue with automatic mid-flight cleanup and GPU priority throttling.
 *   **Parallel Hybrid Retrieval**: Integrates three retrieval paths: vector search over-fetching (top-20 candidates), LightRAG entity/relationship extraction, and real-time graph traversal.
 *   **Cross-Encoder Reranking**: Re-evaluates retrieval candidates using a joint-scoring Cross-Encoder model (`BAAI/bge-reranker-v2-m3`) for high-precision context filtering.
 *   **Visual Document Intelligence**: Extracts inline images and tables, automatically captions them using a Vision LLM, and embeds those summaries directly into the chunk vectors to make visual media semantically searchable.
 *   **Grounded Citations**: Citations are represented by persistent 4-character inline badges mapping back to original source filenames, exact page numbers, and structural heading paths in the PDF viewer.
-*   **Interactive Knowledge Graph**: Generates a 3D-like, force-directed canvas visualizing extracted entities and relationships with real-time panning, zooming, and physics simulation.
+*   **Interactive Knowledge Graph**: Generates an interactive 2D force-directed canvas visualizing extracted entities and relationships with real-time dragging, panning, zooming, and physics simulation.
 *   **Multi-Provider LLM & Thinking**: Support for cloud-based Gemini (2.5-flash, 3.1-flash-lite) and local Ollama (Gemma 4, Qwen 3.5) with native tool calling and extended reasoning panels.
 
 ---
@@ -121,22 +128,58 @@ Set these keys in your `.env` file to customize hardware allocation and pipeline
 | `ORION_EMBEDDING_MODEL` | `BAAI/bge-m3` | Embedding model for semantic search (1024-dim) |
 | `ORION_RERANKER_MODEL` | `BAAI/bge-reranker-v2-m3` | Cross-encoder model for reranking |
 | `ORION_KG_LANGUAGE` | `English` | Extraction language for the LightRAG knowledge graph |
+| `ORION_ENABLE_KG` | `true` | Enable/disable Knowledge Graph extraction during ingestion |
+| `OLLAMA_NUM_CTX` | `8192` | Context window size (in tokens) for Ollama inference |
 
 ---
 
 ## MCP Server
 
-Orion includes a Model Context Protocol (MCP) server that exposes its core retrieval functions:
-*   `get_workspace_list`: Retrieves all active knowledge bases.
-*   `get_document_by_id`: Fetches document-specific structural metadata.
-*   `query`: Performs high-fidelity hybrid queries against active workspaces.
+Orion includes a Model Context Protocol (MCP) server (`mcp-server/`) that exposes its core retrieval functions to external AI IDEs and desktop tools:
+*   `get_workspace_list`: Retrieves a list of all active knowledge bases.
+*   `query`: Runs hybrid search (Vector + LightRAG + Reranker) for a given `workspace_id`.
+*   `get_document_by_id`: Fetches Markdown text and processing status for an indexed document.
+*   `get_chunks`: Retrieves raw parsed text chunks for a specific document.
 
-#### Integration
-Add Orion's MCP server to Cursor or Claude Desktop as an SSE connection using the URL:
-```text
-http://localhost:8000/mcp
+### How to Run the MCP Server
+
+#### Option 1: Standalone Node.js
+```bash
+cd mcp-server
+npm install
+npm run build
+
+# Start HTTP SSE Server on port 8001
+TRANSPORT=http PORT=8001 npm start
+```
+
+#### Option 2: Docker
+```bash
+docker compose up mcp-server -d
+```
+
+### Integration with AI Tools
+
+#### **Cursor IDE**
+1. Open **Cursor Settings** → **Models** → **MCP**.
+2. Click **+ Add New MCP Server**.
+3. Set **Type** to `SSE` (or `Streamable HTTP`) and **URL** to:
+   ```text
+   http://localhost:8001/mcp
+   ```
+
+#### **Claude Desktop**
+Add Orion's MCP server to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "orionrag": {
+      "url": "http://localhost:8001/mcp"
+    }
+  }
+}
 ```
 
 ---
 
-⭐ If you find Orion useful, please consider giving it a **star** to support its continued development!
+⭐ If you find OrionRAG useful, please consider giving it a **star** to support its continued development!

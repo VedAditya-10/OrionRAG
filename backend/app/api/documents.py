@@ -301,7 +301,14 @@ async def delete_document(
     if document is None:
         raise NotFoundError("Document", document_id)
 
-    if document.status == DocumentStatus.INDEXED:
+    SEARCHABLE_STATUSES = (
+        DocumentStatus.INDEXED,
+        DocumentStatus.VECTOR_READY,
+        DocumentStatus.GRAPH_PENDING,
+        DocumentStatus.GRAPH_READY,
+        DocumentStatus.GRAPH_FAILED,
+    )
+    if document.status in SEARCHABLE_STATUSES:
         try:
             from app.services.rag_service import get_rag_service
             rag_service = get_rag_service(db, document.workspace_id)

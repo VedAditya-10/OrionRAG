@@ -48,9 +48,16 @@ class SentenceTransformerEmbeddingProvider(EmbeddingProvider):
     def model(self):
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+            import torch
+            from app.core.config import settings
 
-            logger.info("Loading sentence-transformers KG embedding model: %s", self._model_name)
-            self._model = SentenceTransformer(self._model_name)
+            device = settings.ORION_EMBEDDING_DEVICE
+            if "cuda" in device.lower() and not torch.cuda.is_available():
+                logger.warning("CUDA is not available. Falling back to CPU for KG embedding model.")
+                device = "cpu"
+
+            logger.info("Loading sentence-transformers KG embedding model: %s on %s", self._model_name, device)
+            self._model = SentenceTransformer(self._model_name, device=device)
             self._dimension = self._model.get_sentence_embedding_dimension()
             logger.info(
                 "KG embedding model loaded: %s (dim=%d)",

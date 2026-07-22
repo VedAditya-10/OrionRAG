@@ -51,7 +51,7 @@ export interface Document {
 }
 
 // RAG Types
-export type DocumentStatus = "pending" | "parsing" | "indexing" | "processing" | "indexed" | "failed";
+export type DocumentStatus = "pending" | "parsing" | "indexing" | "processing" | "indexed" | "vector_ready" | "graph_pending" | "graph_ready" | "graph_failed" | "failed";
 
 export type RAGQueryMode = "hybrid" | "vector_only" | "naive" | "local" | "global";
 

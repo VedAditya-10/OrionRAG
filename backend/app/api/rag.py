@@ -67,7 +67,7 @@ router = APIRouter(prefix="/rag", tags=["rag"])
 UPLOAD_DIR = "uploads"
 
 # Prompt constants — see chat_prompt.py for full documentation
-from app.api.chat_prompt import DEFAULT_SYSTEM_PROMPT, HARD_SYSTEM_PROMPT
+from app.api.chat_prompt import DEFAULT_SYSTEM_PROMPT, HARD_SYSTEM_PROMPT, assemble_system_prompt
 
 
 async def verify_workspace_access(
@@ -199,7 +199,7 @@ async def process_document(
     if document is None:
         raise NotFoundError("Document", document_id)
 
-    if document.status in (DocumentStatus.PROCESSING, DocumentStatus.PARSING, DocumentStatus.INDEXING):
+    if document.status in (DocumentStatus.PROCESSING, DocumentStatus.PARSING, DocumentStatus.INDEXING, DocumentStatus.GRAPH_PENDING):
         # Check if stale (exceeded processing timeout) — auto-recover
         from datetime import datetime, timedelta
         from app.core.config import settings
@@ -216,7 +216,14 @@ async def process_document(
                 detail="Document is already being analyzed"
             )
 
-    if document.status == DocumentStatus.INDEXED:
+    SEARCHABLE_STATUSES = (
+        DocumentStatus.INDEXED,
+        DocumentStatus.VECTOR_READY,
+        DocumentStatus.GRAPH_PENDING,
+        DocumentStatus.GRAPH_READY,
+        DocumentStatus.GRAPH_FAILED,
+    )
+    if document.status in SEARCHABLE_STATUSES:
         return DocumentProcessResponse(
             document_id=document_id,
             status=document.status.value,
@@ -333,7 +340,7 @@ async def reindex_document(
     if document is None:
         raise NotFoundError("Document", document_id)
 
-    if document.status in (DocumentStatus.PROCESSING, DocumentStatus.PARSING, DocumentStatus.INDEXING):
+    if document.status in (DocumentStatus.PROCESSING, DocumentStatus.PARSING, DocumentStatus.INDEXING, DocumentStatus.GRAPH_PENDING):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Document is currently being processed"
@@ -390,6 +397,7 @@ async def reindex_workspace(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
+    """
     Reindex ALL documents in a workspace.
     Deletes the old vector collection (handles embedding dimension changes)
     and re-processes every document through the OrionRAG pipeline.
@@ -489,7 +497,13 @@ async def get_workspace_rag_stats(
     indexed_result = await db.execute(
         select(func.count(Document.id)).where(
             Document.workspace_id == workspace_id,
-            Document.status == DocumentStatus.INDEXED
+            Document.status.in_([
+                DocumentStatus.INDEXED,
+                DocumentStatus.VECTOR_READY,
+                DocumentStatus.GRAPH_PENDING,
+                DocumentStatus.GRAPH_READY,
+                DocumentStatus.GRAPH_FAILED,
+            ])
         )
     )
     indexed_documents = indexed_result.scalar() or 0
@@ -539,7 +553,14 @@ async def get_document_chunks(
     if document is None:
         raise NotFoundError("Document", document_id)
 
-    if document.status != DocumentStatus.INDEXED:
+    SEARCHABLE_STATUSES = (
+        DocumentStatus.INDEXED,
+        DocumentStatus.VECTOR_READY,
+        DocumentStatus.GRAPH_PENDING,
+        DocumentStatus.GRAPH_READY,
+        DocumentStatus.GRAPH_FAILED,
+    )
+    if document.status not in SEARCHABLE_STATUSES:
         return {
             "document_id": document_id,
             "status": document.status.value,
@@ -667,7 +688,13 @@ async def get_workspace_analytics(
     indexed_result = await db.execute(
         select(func.count(Document.id)).where(
             Document.workspace_id == workspace_id,
-            Document.status == DocumentStatus.INDEXED,
+            Document.status.in_([
+                DocumentStatus.INDEXED,
+                DocumentStatus.VECTOR_READY,
+                DocumentStatus.GRAPH_PENDING,
+                DocumentStatus.GRAPH_READY,
+                DocumentStatus.GRAPH_FAILED,
+            ]),
         )
     )
     indexed_documents = indexed_result.scalar() or 0
@@ -1047,7 +1074,8 @@ async def chat_with_documents(
     # Solution: SHORT system prompt + sources/rules in USER MESSAGE.
     # The model pays most attention to the user message.
 
-    system_prompt = (kb.system_prompt or DEFAULT_SYSTEM_PROMPT) + HARD_SYSTEM_PROMPT
+    from app.core.config import settings
+    system_prompt = assemble_system_prompt(kb.system_prompt, settings.LLM_PROVIDER)
 
     # ── Build user message: sources + rules + question ──────────────
     # Structure: CONTEXT → RULES → QUESTION (model reads context first)
@@ -1112,6 +1140,8 @@ async def chat_with_documents(
     messages.append(LLMMessage(role="user", content=user_content, images=user_images))
 
     thinking_text: str | None = None
+    from app.core.gpu_priority import gpu_priority_manager
+    await gpu_priority_manager.start_query()
     try:
         result = await provider.acomplete(
             messages,
@@ -1133,6 +1163,8 @@ async def chat_with_documents(
     except Exception as e:
         logger.error(f"LLM chat error: {e}")
         answer = f"Sorry, I encountered an error generating the response: {str(e)}"
+    finally:
+        await gpu_priority_manager.end_query()
 
     # -- 4. Extract related entities from KG --
     related_entities: list[str] = []
@@ -1288,7 +1320,8 @@ async def debug_chat(
 
     # -- 3. Build prompt (same architecture as chat endpoint) --
     # SHORT system prompt + sources/rules in USER MESSAGE
-    sys_prompt = (kb.system_prompt or DEFAULT_SYSTEM_PROMPT) + HARD_SYSTEM_PROMPT
+    from app.core.config import settings
+    sys_prompt = assemble_system_prompt(kb.system_prompt, settings.LLM_PROVIDER)
 
     # Build user message: CONTEXT → RULES → QUESTION
     user_parts: list[str] = []
@@ -1345,6 +1378,8 @@ async def debug_chat(
 
     answer = ""
     thinking_text: str | None = None
+    from app.core.gpu_priority import gpu_priority_manager
+    await gpu_priority_manager.start_query()
     try:
         llm_result = await provider.acomplete(
             messages,
@@ -1363,6 +1398,8 @@ async def debug_chat(
         answer = re.sub(r'<unused\d+>:?\s*', '', answer).strip()
     except Exception as e:
         answer = f"LLM error: {e}"
+    finally:
+        await gpu_priority_manager.end_query()
 
     from app.core.config import settings as _s
     return DebugChatResponse(

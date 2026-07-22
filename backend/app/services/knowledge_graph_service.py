@@ -41,6 +41,10 @@ async def _kg_llm_complete(
     **kwargs,
 ) -> str:
     """LightRAG-compatible LLM function using the configured provider."""
+    # Pause execution if a live query is active in the backend
+    from app.core.gpu_priority import gpu_priority_manager
+    await gpu_priority_manager.wait_if_priority_active()
+
     provider = get_llm_provider()
 
     messages: list[LLMMessage] = []

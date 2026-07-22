@@ -933,8 +933,9 @@ async def chat_stream_endpoint(
         )
 
     # Build system prompt
-    from app.api.chat_prompt import DEFAULT_SYSTEM_PROMPT, HARD_SYSTEM_PROMPT
-    system_prompt = (kb.system_prompt or DEFAULT_SYSTEM_PROMPT) + HARD_SYSTEM_PROMPT
+    from app.api.chat_prompt import assemble_system_prompt
+    from app.core.config import settings
+    system_prompt = assemble_system_prompt(kb.system_prompt, settings.LLM_PROVIDER)
 
     # Build history
     history = [{"role": m.role, "content": m.content} for m in request.history]
@@ -968,6 +969,8 @@ async def chat_stream_endpoint(
         streaming_sources: list[dict] = []
         streaming_images: list[dict] = []
 
+        from app.core.gpu_priority import gpu_priority_manager
+        await gpu_priority_manager.start_query()
         try:
             async for event in agent_chat_stream(
                 workspace_id=workspace_id,
@@ -1068,6 +1071,7 @@ async def chat_stream_endpoint(
             logger.error(f"Stream error: {e}", exc_info=True)
             yield format_sse_event("error", {"message": str(e)})
         finally:
+            await gpu_priority_manager.end_query()
             # Persist assistant message
             if final_answer:
                 try:

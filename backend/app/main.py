@@ -1,6 +1,3 @@
-"""
-OrionRAG — standalone Knowledge Base + RAG application.
-"""
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -24,11 +21,21 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting ORION API...")
+   
+    async with engine.connect() as conn:
+        conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
+        for val in ['VECTOR_READY', 'GRAPH_PENDING', 'GRAPH_READY', 'GRAPH_FAILED']:
+            try:
+                await conn.execute(text(f"ALTER TYPE documentstatus ADD VALUE '{val}';"))
+                logger.info(f"Database-Migration: Added '{val}' to documentstatus enum.")
+            except Exception:
+                pass
+
     import os
     auto_create = os.environ.get("AUTO_CREATE_TABLES", "true").lower() == "true"
     if auto_create:
         async with engine.begin() as conn:
-            # Check if tables already exist (e.g., alembic_version)
+            
             result = await conn.execute(
                 text("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'alembic_version');")
             )
@@ -83,9 +90,27 @@ async def lifespan(app: FastAPI):
             if stale_ids:
                 await session.commit()
                 logger.warning(f"Recovered {len(stale_ids)} stale documents: {stale_ids}")
+
+        # Recover any crashed/stuck tasks (in GRAPH_PENDING status) on startup
+        async with AsyncSession(engine) as session:
+            await session.execute(
+                update(Document)
+                .where(Document.status == DocumentStatus.GRAPH_PENDING)
+                .values(status=DocumentStatus.VECTOR_READY)
+            )
+            await session.commit()
+            logger.info("Recovered stuck GRAPH_PENDING jobs back to VECTOR_READY.")
+
+        # Start the sequential KG Ingestion queue
+        from app.services.kg_queue import kg_job_queue
+        kg_job_queue.start()
     else:
         logger.info("AUTO_CREATE_TABLES=false — skipping auto-migration")
     yield
+    # Stop background queue worker on shutdown
+    from app.services.kg_queue import kg_job_queue
+    kg_job_queue.stop()
+
     logger.info("Shutting down...")
     await engine.dispose()
 

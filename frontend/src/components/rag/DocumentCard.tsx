@@ -14,6 +14,7 @@ import {
   Clock,
   File,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -38,19 +39,23 @@ function getFileConfig(fileType: string) {
 // ---------------------------------------------------------------------------
 // Status badge
 // ---------------------------------------------------------------------------
-const STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string; icon: typeof CheckCircle2 }> = {
-  pending:    { label: "Pending",    className: "bg-muted text-muted-foreground",           icon: Clock },
-  parsing:    { label: "Parsing",    className: "bg-blue-400/15 text-blue-400",             icon: Loader2 },
-  indexing:   { label: "Indexing",   className: "bg-amber-400/15 text-amber-400",           icon: Loader2 },
-  processing: { label: "Processing", className: "bg-amber-400/15 text-amber-400",           icon: Loader2 },
-  indexed:    { label: "Indexed",    className: "bg-primary/15 text-primary",               icon: CheckCircle2 },
-  failed:     { label: "Failed",     className: "bg-destructive/15 text-destructive",       icon: XCircle },
+const STATUS_CONFIG: Record<DocumentStatus, { label: string; className: string; icon: any }> = {
+  pending:       { label: "Pending",    className: "bg-muted text-muted-foreground",           icon: Clock },
+  parsing:       { label: "Parsing Document", className: "bg-blue-400/15 text-blue-400",      icon: Loader2 },
+  indexing:      { label: "Vector Indexing", className: "bg-amber-400/15 text-amber-400",       icon: Loader2 },
+  processing:    { label: "Processing", className: "bg-amber-400/15 text-amber-400",           icon: Loader2 },
+  indexed:       { label: "Indexed",    className: "bg-primary/15 text-primary",               icon: CheckCircle2 },
+  vector_ready:  { label: "Vector Ready", className: "bg-emerald-500/15 text-emerald-400",   icon: CheckCircle2 },
+  graph_pending: { label: "Vector Ready — Building Knowledge Graph...", className: "bg-purple-500/15 text-purple-400", icon: Loader2 },
+  graph_ready:   { label: "Vector + Graph Complete", className: "bg-emerald-500/15 text-emerald-400", icon: CheckCircle2 },
+  graph_failed:  { label: "Vector Ready (Graph Failed)", className: "bg-amber-500/15 text-amber-400", icon: AlertTriangle },
+  failed:        { label: "Failed",     className: "bg-destructive/15 text-destructive",       icon: XCircle },
 };
 
 function StatusBadge({ status }: { status: DocumentStatus }) {
   const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
   const Icon = config.icon;
-  const isAnimated = status === "parsing" || status === "indexing" || status === "processing";
+  const isAnimated = status === "parsing" || status === "indexing" || status === "processing" || status === "graph_pending";
 
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full", config.className)}>
@@ -161,7 +166,7 @@ export const DocumentCard = memo(function DocumentCard({
           ? "border-blue-400/50 shadow-[0_0_12px_-3px_rgba(96,165,250,0.3)]"
           : "border-border hover:shadow-md hover:-translate-y-0.5",
         selected && "border-primary ring-1 ring-primary/30 shadow-sm",
-        doc.status === "indexed" ? "cursor-pointer" : "cursor-default",
+        ["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(doc.status) ? "cursor-pointer" : "cursor-default",
         justTriggered && "ring-2 ring-blue-400/60",
       )}
       onClick={() => onClick?.(doc)}
@@ -229,7 +234,7 @@ export const DocumentCard = memo(function DocumentCard({
             </Button>
           )}
           {/* Re-process for indexed docs — hover only */}
-          {doc.status === "indexed" && (
+          {["indexed", "vector_ready", "graph_ready", "graph_failed"].includes(doc.status) && (
             <Button
               variant="ghost"
               size="icon"

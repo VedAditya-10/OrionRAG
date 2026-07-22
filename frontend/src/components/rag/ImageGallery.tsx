@@ -283,7 +283,7 @@ export const ImageGallery = memo(function ImageGallery({ doc }: ImageGalleryProp
   const { data: images, isLoading } = useQuery({
     queryKey: ["document-images", doc.id],
     queryFn: () => api.get<DocumentImage[]>(`/documents/${doc.id}/images`),
-    enabled: doc.status === "indexed",
+    enabled: ["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(doc.status),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -312,7 +312,7 @@ export const ImageGallery = memo(function ImageGallery({ doc }: ImageGalleryProp
   }, []);
 
   // ---- States ----
-  if (doc.status !== "indexed") {
+  if (!["indexed", "vector_ready", "graph_pending", "graph_ready", "graph_failed"].includes(doc.status)) {
     return <GalleryEmpty />;
   }
   if (isLoading) return <GallerySkeleton />;
