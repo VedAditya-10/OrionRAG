@@ -115,7 +115,11 @@ class OllamaLLMProvider(LLMProvider):
             response = client.chat(
                 model=self._model,
                 messages=ollama_msgs,
-                options={"temperature": temperature, "num_predict": max_tokens},
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": 16384,  # Expand context window for RAG
+                },
                 think=True if use_think else None,
             )
             result = self._extract_content(response, keep_thinking=use_think)
@@ -153,7 +157,11 @@ class OllamaLLMProvider(LLMProvider):
             response = await client.chat(
                 model=self._model,
                 messages=ollama_msgs,
-                options={"temperature": temperature, "num_predict": max_tokens},
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": 16384,  # Expand context window for RAG
+                },
                 think=True if use_think else None,
             )
             result = self._extract_content(response, keep_thinking=use_think)
@@ -198,7 +206,11 @@ class OllamaLLMProvider(LLMProvider):
             kwargs: dict = dict(
                 model=self._model,
                 messages=ollama_msgs,
-                options={"temperature": temperature, "num_predict": max_tokens},
+                options={
+                    "temperature": temperature,
+                    "num_predict": max_tokens,
+                    "num_ctx": 16384,  # Expand context window for RAG
+                },
                 stream=True,
                 think=True if use_think else None,
             )

@@ -390,6 +390,7 @@ async def reindex_workspace(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
+    """
     Reindex ALL documents in a workspace.
     Deletes the old vector collection (handles embedding dimension changes)
     and re-processes every document through the OrionRAG pipeline.

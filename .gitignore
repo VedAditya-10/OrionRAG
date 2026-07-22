@@ -1,28 +1,57 @@
+# Python
 __pycache__/
 *.pyc
 *.pyo
-.env
-frontend/.env
-node_modules/
-dist/
-backend/data/docling/
-backend/data/lightrag/
-backend/uploads/
+*.egg-info/
 venv/
 .venv/
 venv2/
 backend/venv2/
-*.db
-backend/data/**/*.db
-backend/data/**/*.json
-*.db-journal
-*.sqlite3
-*.egg-info/
-.DS_Store
-screenlog/
-nexusrag.db
-showcase/demo_nexus_video.mkv
-CLAUDE.md
 
-scripts
+# Environment files
+.env
+frontend/.env
+!env.example
+!.env.example
+
+# Node / React
+node_modules/
+dist/
+
+# Generated Documents & Markdown (Ignore all .md files EXCEPT README.md)
+*.md
+!README.md
+*.pdf
+*.docx
+
+# Generated Diagrams & Media
+architecture_diagram.png
+showcase/demo_nexus_video.mkv
+
+# Databases & Local Data Directories
+*.db
+*.sqlite3
+*.db-journal
+nexusrag.db
+backend/chroma/
+backend/data/
+backend/uploads/
+backend/data/docling/
+backend/data/lightrag/
+
+# Misc
+.DS_Store
+CLAUDE.md
+screenlog/
+scripts/
 .gstack/
+
+# Windows local batch files
+run_bk.bat
+run_fe.bat
+run_chroma.bat
+enable_gpu.bat
+
+OrionRAG_Industrial_Intelligence_Report.pdf
+OrionRAG_Master_Project_Report.docx
+OrionRAG_Project_Presentation.pptx
